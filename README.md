@@ -8,3 +8,5 @@ This project is an initial version, which can train and test the model but may c
 Currently this project cannot reproduce the accuracy and speed reported in the original paper. In terms of the speed, the official implementation uses their optimized cuda op to accelerate the reference and training.(Please refer to their [official repository](https://github.com/googleresearch/google-research/tree/master/hitnet), which has not inculded the model code yet). 
 
 Thanks for the help of Vladimir Tankovich, who has proposed this great stereo network with his team and provided me with a lot of details and clarifications of the original paper.
+
+Also, I would thank @xy-guo, who proposed the amazing [GwcNet](https://github.com/xy-guo/GwcNet) since the code is partially borrowed from his repository.
