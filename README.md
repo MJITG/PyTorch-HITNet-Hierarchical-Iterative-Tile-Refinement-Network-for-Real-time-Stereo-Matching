@@ -9,4 +9,4 @@ Currently this project cannot reproduce the accuracy and speed reported in the o
 
 Thanks for the help of Vladimir Tankovich, who has proposed this great stereo network with his team and provided me with a lot of details and clarifications of the original paper.
 
-Also, I would thank @xy-guo, who proposed the amazing [GwcNet](https://github.com/xy-guo/GwcNet), since the code is partially borrowed from his repository.
+Also, I would thank @xy-guo, who proposed the amazing [GwcNet](https://github.com/xy-guo/GwcNet), since the code was partially borrowed from his repository.
