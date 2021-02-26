@@ -52,29 +52,33 @@ def global_loss(init_cv_cost_pyramid, prop_disp_pyramid, dx_pyramid, dy_pyramid,
     prop_loss_pyramid = []  # masked
     prop_diff_pyramid = []  # not masked
     mask = (d_gt > 0) & (d_gt < maxdisp)
+    prop_loss_weights = [1/64, 1/32, 1/32, 1/16, 1/16, 1/8, 1/8, 1/4, 1/4, 1/4, 1/2, 1]
     for i, disp in enumerate(prop_disp_pyramid):
         prop_diff_pyramid.append(
             torch.abs(d_gt - disp)
         )
         prop_loss_pyramid.append(
-            lambda_prop * prop_loss(prop_diff_pyramid[-1], 10000)[mask]
+            lambda_prop * prop_loss_weights[i] * prop_loss(prop_diff_pyramid[-1], 10000)[mask]
         )
         # pdb.set_trace()
     prop_loss_vec = torch.cat(prop_loss_pyramid, dim=0)
     # pdb.set_trace()
 
     slant_loss_pyramid = []
+    slant_loss_weights = [1/64, 1/32, 1/32, 1/16, 1/16, 1/8, 1/8, 1/4, 1/4, 1/4, 1/2]
     for i in range(len(dx_pyramid)):
+        # print(i)
         slant_loss_pyramid.append(
-            lambda_slant * slant_loss(dx_pyramid[i], dy_pyramid[i], dx_gt, dy_gt, prop_diff_pyramid[i], mask)
+            lambda_slant * slant_loss_weights[i] * slant_loss(dx_pyramid[i], dy_pyramid[i], dx_gt, dy_gt, prop_diff_pyramid[i], mask)
         )
     slant_loss_vec = torch.cat(slant_loss_pyramid, dim=0)
     # pdb.set_trace()
 
     w_loss_pyramid = []
+    w_loss_weights = [1/32, 1/32, 1/16, 1/16, 1/8, 1/8, 1/4, 1/4]
     for i, w in enumerate(w_pyramid):
         w_loss_pyramid.append(
-            lambda_w * w_loss(w, prop_diff_pyramid[i+1], mask)  # index for prop_diff_pyramid plus 1 since there is no confidence at 1st level
+            lambda_w * w_loss_weights[i] * w_loss(w, prop_diff_pyramid[i+1], mask)  # index for prop_diff_pyramid plus 1 since there is no confidence at 1st level
         )
     w_loss_vec = torch.cat(w_loss_pyramid, dim=0)
     # pdb.set_trace()
