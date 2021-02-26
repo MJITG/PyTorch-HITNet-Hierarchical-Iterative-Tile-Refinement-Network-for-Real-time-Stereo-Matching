@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from .FE import feature_extraction_conv
 from .initialization import INIT
 from .tile_warping import TileWarping
-from .tile_update import TileUpdate, PostTileUpdate
+from .tile_update import TileUpdate, PostTileUpdate, FinalTileUpdate, PostTileUpdateNoUp
 from models.submodules import DispUpsampleBySlantedPlane, SlantDUpsampleBySlantedPlaneT4T4, SlantD2xUpsampleBySlantedPlaneT4T2
 import pdb
 from utils.write_pfm import write_pfm_tensor
@@ -16,13 +16,14 @@ class HITNet(nn.Module):
         self.feature_extractor = feature_extraction_conv(args)
         self.tile_init = INIT(args)
         self.tile_warp = TileWarping(args)
-        self.tile_update0 = TileUpdate(64, 16, 32, 2, args)  # 1/16 tile refine
-        self.tile_update1 = TileUpdate(128, 34, 32, 2, args)  # 1/8 tile refine
-        self.tile_update2 = TileUpdate(128, 34, 32, 4, args)  # 1/4 tile refine
-        self.tile_update3 = TileUpdate(128, 34, 32, 4, args)  # 1/2 tile refine
-        self.tile_update4 = TileUpdate(128, 34, 32, 2, args)  # 1/1 tile refine
-        self.tile_update5 = PostTileUpdate(28, 16, 32, 2, 2, SlantD2xUpsampleBySlantedPlaneT4T2(), args)  # 2/1 tile refine tile_size=2
-        self.tile_update6 = PostTileUpdate(19, 16, 16, 2, 1, DispUpsampleBySlantedPlane(2, 2), args)  # 2/1 tile refine tile_size=1
+        self.tile_update0 = TileUpdate(32, 16, 32, 2, args)  # 1/16 tile refine
+        self.tile_update1 = TileUpdate(64, 34, 32, 2, args)  # 1/8 tile refine
+        self.tile_update2 = TileUpdate(64, 34, 32, 2, args)  # 1/4 tile refine
+        self.tile_update3 = TileUpdate(64, 34, 32, 2, args)  # 1/2 tile refine
+        self.tile_update4 = TileUpdate(64, 34, 32, 2, args)  # 1/1 tile refine
+        self.tile_update4_1 = PostTileUpdateNoUp(40, 16, 32, 4, args)  # 1/1 tile refine
+        self.tile_update5 = PostTileUpdate(32, 16, 32, 4, SlantD2xUpsampleBySlantedPlaneT4T2(), args)  # 2/1 tile refine tile_size=2
+        self.tile_update6 = FinalTileUpdate(32, 1, 16, 2, DispUpsampleBySlantedPlane(2, 2), args)  # 2/1 tile refine tile_size=1
 
         # For training phase, we need to upsample disps using slant equation
         self.prop_disp_upsample64x = DispUpsampleBySlantedPlane(64)
@@ -50,9 +51,11 @@ class HITNet(nn.Module):
         tile_update4x = self.tile_update2(left_fea_pyramid[2], right_fea_pyramid[2], init_tile_pyramid[2], tile_update8x[0])
         tile_update2x = self.tile_update3(left_fea_pyramid[3], right_fea_pyramid[3], init_tile_pyramid[3], tile_update4x[0])
         tile_update1x = self.tile_update4(left_fea_pyramid[4], right_fea_pyramid[4], init_tile_pyramid[4], tile_update2x[0])
-        refined_tile05x = self.tile_update5(left_fea_pyramid[4], right_fea_pyramid[4], tile_update1x[0])
-        refined_tile025x = self.tile_update6(left_fea_pyramid[4], right_fea_pyramid[4], refined_tile05x)
-        final_disp = refined_tile025x[:, :1, :, :]
+        refined_tile1x = self.tile_update4_1(left_fea_pyramid[2], tile_update1x[0])
+        refined_tile05x = self.tile_update5(left_fea_pyramid[3], refined_tile1x)
+        refined_tile025x = self.tile_update6(left_fea_pyramid[4], refined_tile05x)
+        final_disp = refined_tile025x
+        # pdb.set_trace()
 
         if self.training:
             prop_disp16_fx = self.prop_disp_upsample64x(refined_tile16x[:, :1, :, :], refined_tile16x[:, 1:2, :, :], refined_tile16x[:, 2:3, :, :])
@@ -64,6 +67,7 @@ class HITNet(nn.Module):
             prop_disp2_fx_pre = self.prop_disp_upsample8x(tile_update2x[2], tile_update2x[4], tile_update2x[6])
             prop_disp1_fx_cur = self.prop_disp_upsample4x(tile_update1x[1], tile_update1x[3], tile_update1x[5])
             prop_disp1_fx_pre = self.prop_disp_upsample4x(tile_update1x[2], tile_update1x[4], tile_update1x[6])
+            prop_disp1_fx = self.prop_disp_upsample4x(refined_tile1x[:, :1, :, :], refined_tile1x[:, 1:2, :, :], refined_tile1x[:, 2:3, :, :])
             prop_disp05_fx = self.prop_disp_upsample2x(refined_tile05x[:, :1, :, :], refined_tile05x[:, 1:2, :, :], refined_tile05x[:, 2:3, :, :])
             prop_disp_pyramid = [
                 prop_disp16_fx,
@@ -75,6 +79,7 @@ class HITNet(nn.Module):
                 prop_disp2_fx_pre,
                 prop_disp1_fx_cur,
                 prop_disp1_fx_pre,
+                prop_disp1_fx,
                 prop_disp05_fx,
                 final_disp
             ]
@@ -89,6 +94,7 @@ class HITNet(nn.Module):
             dx2_fx_pre = self.dxdy_upsample8x(tile_update2x[4])
             dx1_fx_cur = self.dxdy_upsample4x(tile_update1x[3])
             dx1_fx_pre = self.dxdy_upsample4x(tile_update1x[4])
+            dx1_fx = self.dxdy_upsample4x(refined_tile1x[:, 1:2, :, :])
             dx05_fx = self.dxdy_upsample2x(refined_tile05x[:, 1:2, :, :])
             dx_pyramid = [
                 dx16_fx,
@@ -100,8 +106,8 @@ class HITNet(nn.Module):
                 dx2_fx_pre,
                 dx1_fx_cur,
                 dx1_fx_pre,
+                dx1_fx,
                 dx05_fx,
-                refined_tile025x[:, 1:2, :, :]
             ]
 
             dy16_fx = self.dxdy_upsample64x(refined_tile16x[:, 2:3, :, :])
@@ -113,6 +119,7 @@ class HITNet(nn.Module):
             dy2_fx_pre = self.dxdy_upsample8x(tile_update2x[6])
             dy1_fx_cur = self.dxdy_upsample4x(tile_update1x[5])
             dy1_fx_pre = self.dxdy_upsample4x(tile_update1x[6])
+            dy1_fx = self.dxdy_upsample4x(refined_tile1x[:, 2:3, :, :])
             dy05_fx = self.dxdy_upsample2x(refined_tile05x[:, 2:3, :, :])
             dy_pyramid = [
                 dy16_fx,
@@ -124,8 +131,8 @@ class HITNet(nn.Module):
                 dy2_fx_pre,
                 dy1_fx_cur,
                 dy1_fx_pre,
+                dy1_fx,
                 dy05_fx,
-                refined_tile025x[:, 2:3, :, :]
             ]
 
             conf8_fx_cur = self.dxdy_upsample32x(tile_update8x[7])
