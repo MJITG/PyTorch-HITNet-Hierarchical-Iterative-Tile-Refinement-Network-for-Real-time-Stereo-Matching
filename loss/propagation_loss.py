@@ -38,11 +38,9 @@ def slant_loss(dx, dy, dx_gt, dy_gt, d_diff, mask, B=1):
     mask = mask * closer_mask  # mask and
     slant_diff = torch.cat([dx_gt-dx, dy_gt-dy], dim=1)
     loss = torch.norm(slant_diff, p=1, dim=1, keepdim=True)[mask]
+    # print('slant_loss: {:.3f}'.format(loss.mean()))
+    # print('dx_gt mean: {:.3f}, dy_gt mean: {:.3f}'.format(dx_gt.mean(), dy_gt.mean()))
     return loss  # 1-dim vector
-
-
-def fitting_plane(disp_gt, window):
-    pass
 
 
 def w_loss(conf, diff, mask, C1=1, C2=1.5):
