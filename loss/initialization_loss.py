@@ -25,6 +25,8 @@ def subpix_cost(cost: torch.Tensor, disp: torch.Tensor):
     :param disp:
     :return:
     """
+    disp[disp >= maxdisp - 1] = maxdisp - 2
+    disp[disp < 0] = 0
     disp_floor = disp.floor()
     sub_cost = (disp - disp_floor) * torch.gather(cost, 1, disp_floor.long()+1) + (disp_floor + 1 - disp) * torch.gather(cost, 1, disp_floor.long())
     # pdb.set_trace()
