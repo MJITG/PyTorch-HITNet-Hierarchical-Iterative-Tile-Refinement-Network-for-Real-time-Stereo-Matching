@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import pdb
 
 
-def init_loss(pred_init_cost: torch.Tensor, d_gt: torch.Tensor, beta=1):
+def init_loss(pred_init_cost: torch.Tensor, d_gt: torch.Tensor, maxdisp, beta=1):
     """
     Initialization loss, HITNet paper eqt(10
     :param pred_init_cost:
@@ -11,7 +11,7 @@ def init_loss(pred_init_cost: torch.Tensor, d_gt: torch.Tensor, beta=1):
     :param beta:
     :return: init loss [B*1*H*W]
     """
-    cost_gt = subpix_cost(pred_init_cost, d_gt)
+    cost_gt = subpix_cost(pred_init_cost, d_gt, maxdisp)
     cost_nm = torch.gather(pred_init_cost, 1, get_non_match_disp(pred_init_cost, d_gt))
     loss = cost_gt + F.relu(beta - cost_nm)
     # pdb.set_trace()
