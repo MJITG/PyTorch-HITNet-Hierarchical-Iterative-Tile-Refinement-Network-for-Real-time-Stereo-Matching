@@ -18,13 +18,14 @@ def init_loss(pred_init_cost: torch.Tensor, d_gt: torch.Tensor, beta=1):
     return loss
 
 
-def subpix_cost(cost: torch.Tensor, disp: torch.Tensor):
+def subpix_cost(cost: torch.Tensor, disp: torch.Tensor, maxdisp: int):
     """
     phi, e.g. eqt(9) in HITNet paper
     :param cost:
     :param disp:
     :return:
     """
+    # pdb.set_trace()
     disp[disp >= maxdisp - 1] = maxdisp - 2
     disp[disp < 0] = 0
     disp_floor = disp.floor()
