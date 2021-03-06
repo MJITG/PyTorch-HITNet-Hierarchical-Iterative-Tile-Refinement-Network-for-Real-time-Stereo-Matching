@@ -43,7 +43,7 @@ def global_loss(init_cv_cost_pyramid, prop_disp_pyramid, dx_pyramid, dy_pyramid,
         # pdb.set_trace()
         mask = (d_gt_pyramid[i] > 0) & (d_gt_pyramid[i] < maxdisp/(2**(len(init_cv_cost_pyramid)-1-i)))
         init_loss_pyramid.append(
-            lambda_init * init_loss(cv, d_gt_pyramid[i], maxdisp)[mask]
+            lambda_init * init_loss(cv, d_gt_pyramid[i], maxdisp/(2**(len(init_cv_cost_pyramid)-1-i)))[mask]
         )
         # pdb.set_trace()
     init_loss_vec = torch.cat(init_loss_pyramid, dim=0)  # 1-dim vector
